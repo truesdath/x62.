@@ -7,7 +7,7 @@ getgenv().x62 = {
                 Point = "HumanoidRootPart"
             },
             CurvePatterns = {
-                Pullback = 0.13,
+                Pullback = 0.19,
                 Pattern = "Math",
                 Configuration = {
                     Caclulation = 0.2,
@@ -24,7 +24,7 @@ getgenv().x62 = {
             },
             Delta = {
                 Vertical = 0.13,
-                Horizontal = 0.13,
+                Horizontal = 0.71,
                 Steepness = 0.09
             },
             Shake = {
