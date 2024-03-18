@@ -18,21 +18,21 @@ getgenv().x62 = {
                 },
                 Displacement = {
                     Enabled = true,
-                    DisplacementX = 0.0876,
-                    DisplacementY = 0.0876
+                    DisplacementX = 0.75,
+                    DisplacementY = 0.1899
                 }
             },
             Delta = {
-                Vertical = 0.13,
-                Horizontal = 0.71,
-                Steepness = 0.09
+                Vertical = 0.0876,
+                Horizontal = 0.13,
+                Steepness = 0.9
             },
             Shake = {
                 Enabled = true,
                 Factor = 0.1,
-                X = 10,
-                Y = 10,
-                Z = 12
+                X = 22,
+                Y = 22,
+                Z = 22
             }
         }
     },
