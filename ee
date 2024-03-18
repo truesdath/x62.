@@ -1,0 +1,401 @@
+getgenv().x62 = {
+    Aimbot = {
+        Settings = {
+            Enabled = true,
+            Targetting = {
+                Target = "C",
+                Point = "HumanoidRootPart"
+            },
+            CurvePatterns = {
+                Pullback = 0.13,
+                Pattern = "Math",
+                Configuration = {
+                    Caclulation = 0.5,
+                    Delta = 0.9,
+                    Rapid = 0.11,
+                    Offset = 0.1,
+                    Controllage = 0.1
+                },
+                Displacement = {
+                    Enabled = true,
+                    DisplacementX = 0.0876,
+                    DisplacementY = 0.0876
+                }
+            },
+            Delta = {
+                Vertical = 0.0876,
+                Horizontal = 0.876,
+                Steepness = 0.09
+            },
+            Shake = {
+                Enabled = true,
+                Factor = 0.1,
+                X = 22,
+                Y = 22,
+                Z = 22
+            }
+        }
+    },
+    Curve = {
+        Enabled = true,
+        Type = "Target",
+        Part = "HumanoidRootPart",
+        Amount = 0.1399
+    },
+    Resolving = {
+        Enabled = false,
+        PositionMethods = true,
+        PositionMethod = "Position",
+        Delta = 70,
+        Acceleration = 18.2,
+        ThresholdVelocity = 0.192,
+        RevertValue = 0.12
+    },
+    Checks = {
+        Death = true,
+        Visible = true,
+        Picked = true
+    },
+    Renders = {
+        Visible = true,
+        Transparency = 0,
+        Filled = false,
+        Outline = false,
+        Color = Color3.new(1, 1, 1),
+        Radius = 40
+    }
+}
+
+local Players = game:GetService("Players")
+local Self = game:GetService("Players").LocalPlayer
+local Mouse = game:GetService("Players").LocalPlayer:GetMouse()
+local UserInputService = game:GetService("UserInputService")
+local RS = game:GetService("RunService")
+local Camera = game.Workspace.CurrentCamera
+local CurveTarget, AimbotTarget, Velocity, SVelocity
+local Point
+local Script = { Functions = {}, Renders = {}, CachedPlayers = nil }
+
+local Find = string.find
+
+local GBGBAYS = getgenv().x62
+local Aimbot = x62.Aimbot
+local Curve = x62.Curve
+
+local AimbotFOV = Drawing.new("Circle")
+
+AimbotFOV.Color = Color3.new(0, 0, 0)
+AimbotFOV.Thickness = 1
+AimbotFOV.Filled = false
+AimbotFOV.Transparency = 0.7
+
+local createCircle = function()
+    if (not AimbotFOV) then
+        return AimbotFOV
+    end
+    AimbotFOV.Visible = getgenv().x62.Renders.Visible
+    AimbotFOV.Color = getgenv().x62.Renders.Color
+    AimbotFOV.Transparency = getgenv().x62.Renders.Transparency
+    AimbotFOV.Filled = getgenv().x62.Renders.Filled
+    AimbotFOV.Radius = getgenv().x62.Renders.Radius * 3
+    AimbotFOV.Position = Vector2.new(Mouse.X, Mouse.Y + (game:GetService("GuiService"):GetGuiInset().Y))
+    return AimbotFOV
+end
+
+local RayViewPort = function(destination, ignore)
+    if getgenv().x62.Checks.RayViewPort then
+        local Origin = Camera.CFrame.p
+        local CheckRay = Ray.new(Origin, destination - Origin)
+        local Hit = game.workspace:FindPartOnRayWithIgnoreList(CheckRay, ignore)
+        return Hit == nil
+    else
+        return true
+    end
+end
+
+local function Picked(v)
+    if getgenv().x62.Checks.Picked then
+        if v:FindFirstChild("GRABBING_CONSTRAINT") ~= nil then
+            return false
+        else
+            return true
+        end
+    else
+        return true
+    end
+end
+
+local function CastVisible(Object)
+    if getgenv().x62.Checks.Visible then
+        local Casted = Ray.new(game.Players.LocalPlayer.Character.HumanoidRootPart.Position, Object.Position - game.Players.LocalPlayer.Character.HumanoidRootPart.Position)
+        local NonObjects = {
+            game.Players.LocalPlayer.Character,
+            Object.Parent
+        }
+        local FalseValue, i, d, k = game.Workspace:FindPartOnRayWithIgnoreList(Casted, NonObjects)
+        local _, v = Workspace.CurrentCamera:WorldToScreenPoint(Object.Position)
+        if v and not FalseValue then
+            return true
+        else
+            return false
+        end
+    else
+        return true
+    end
+end
+
+local function Dead(v)
+    if getgenv().x62.Checks.Death then
+        if v:FindFirstChild("BodyEffects")["K.O"].Value == false then
+            return true
+        else
+            return false
+        end
+    else
+        return true
+    end
+end
+
+local WorldToScreenObject = function(Object)
+    local ObjectVector = Camera:WorldToScreenPoint(Object.Position)
+    return Vector2.new(ObjectVector.X, ObjectVector.Y)
+end
+
+local function ClosestAimbot()
+    local VectorPoint
+    local shortestDistance = math.huge
+    local localPlayer = game.Players.LocalPlayer
+    local camera = workspace.CurrentCamera
+    local mousePosition = Vector2.new(Mouse.X, Mouse.Y)
+    
+    for _, player in ipairs(game.Players:GetPlayers()) do
+        if player ~= localPlayer and player.Character and player.Character:FindFirstChild("Humanoid") then
+            local character = player.Character
+            local humanoidRootPart = character.PrimaryPart
+            if humanoidRootPart then
+                local worldPosition = humanoidRootPart.Position
+                local screenPosition = camera:WorldToViewportPoint(worldPosition)
+                local distance = (Vector2.new(screenPosition.X, screenPosition.Y) - mousePosition).magnitude
+                
+                if distance < shortestDistance then
+                    VectorPoint = player
+                    shortestDistance = distance
+                end
+            end
+        end
+    end
+    
+    return VectorPoint
+end
+
+local function Filter(Object)
+    if Find(Object.Name, "Gun") then
+        return
+    end
+    if Object:IsA("Part") or Object:IsA("MeshPart") then
+        return true
+    end
+end
+
+local function DeltaEasing(alpha)
+    local p = 1.70158 
+
+    if alpha < 0.5 then
+        alpha = alpha * 2
+        return 0.5 * alpha * alpha * ((p + 1) * alpha - p)
+    else
+        alpha = (alpha - 0.5) * 2
+        return 0.5 * alpha * alpha * ((p + 1) * alpha + p) + 0.5
+    end
+end
+
+local function isoEasing(alpha, duration)
+   
+    local t = alpha / duration
+    local easedAlpha = (1 - math.exp(-5 * t)) / (1 - math.exp(-5))
+
+    local customEasedAlpha = easedAlpha * (2 - easedAlpha)
+
+    local amplitude = getgenv().x62.Aimbot.Settings.CurvePatterns.Configuration.Caclulation
+    local frequency = getgenv().x62.Aimbot.Settings.CurvePatterns.Configuration.Rapid
+    local offset = getgenv().x62.Aimbot.Settings.CurvePatterns.Configuration.Offset
+
+    local customEffect = amplitude * math.sin(frequency * t + offset)
+    customEasedAlpha = customEasedAlpha + customEffect
+
+    local smoothingFactor = getgenv().x62.Aimbot.Settings.CurvePatterns.Configuration.Delta
+    customEasedAlpha = alpha * smoothingFactor + customEasedAlpha * (1 - smoothingFactor)
+
+    local jitterAmount = getgenv().x62.Aimbot.Settings.CurvePatterns.Configuration.Controllage
+    local randomControllage = (math.random() * 2 - 1) * jitterAmount
+    customEasedAlpha = customEasedAlpha + randomControllage
+
+    customEasedAlpha = math.max(0, math.min(1, customEasedAlpha))
+
+    return customEasedAlpha
+end
+
+local function DynamicTargetDelta(target, part)
+    local DeltaFactors = getgenv().x62.Aimbot.Settings.Delta
+    local Velocity = target.Character[part].Velocity
+    local PredictedPosition = target.Character[part].Position + Vector3.new(
+        Velocity.X * DeltaFactors.Vertical,
+        Velocity.Y * DeltaFactors.Horizontal,
+        Velocity.Z * DeltaFactors.Steepness
+    )
+    return PredictedPosition
+end
+
+local function DeltaFormula(target, part)
+    local DeltaFactor = getgenv().x62.Aimbot.Settings.Delta.Vertical
+
+    local Velocity = target.Character[part].Velocity
+    local Gravity = workspace.Gravity
+    local TimeOfFlight = 2 * Velocity.Y / Gravity
+    local DisplacementYDistance = Velocity.X * TimeOfFlight
+    local DisplacementXDistance = (Velocity.Y * TimeOfFlight) - (0.5 * Gravity * TimeOfFlight^2)
+    local PredictedPosition = target.Character[part].Position + Vector3.new(DisplacementYDistance, DisplacementXDistance, Velocity.Z) * DeltaFactor
+
+    return PredictedPosition
+end
+
+local function TargetDelta(target, part)
+    local DeltaFactor = getgenv().x62.Aimbot.Settings.Delta.Vertical
+    local Position = target.Character[part].Position
+    local Velocity = target.Character[part].Velocity
+    local Acceleration = target.Character[part].AssemblyLinearVelocity
+    local DeltaTime = game:GetService("RunService").Heartbeat:Wait()
+    local PredictedPosition = Position + Velocity * DeltaTime + 0.5 * Acceleration * DeltaTime^2 * DeltaFactor
+
+    return PredictedPosition
+end
+
+local function IsAimbotEnabled()
+    return x62.Aimbot.Settings.Enabled
+end
+
+local function IsValidAimbotTarget(AimbotTarget)
+    return AimbotTarget and AimbotTarget.Character ~= nil and CastVisible(AimbotTarget.Character[getgenv().x62.Aimbot.Settings.Targetting.Point]) and Dead(AimbotTarget.Character) and Picked(AimbotTarget.Character)
+end
+
+local function GetDisplacement()
+    if getgenv().x62.Aimbot.Settings.CurvePatterns.Displacement.Enabled then
+        return getgenv().x62.Aimbot.Settings.CurvePatterns.Displacement.DisplacementX, getgenv().x62.Aimbot.Settings.CurvePatterns.Displacement.DisplacementY
+    else
+        return 0, 0
+    end
+end
+
+local function GetAdjustedPosition(TargetPosition, OffsetX, OffsetY)
+    return TargetPosition + Vector3.new(OffsetX, OffsetY, 0)
+end
+
+local function GetAdjustedDelta(TargetPosition, OffsetX, OffsetY, Jittering)
+    if getgenv().x62.Aimbot.Settings.Shake.Enabled then
+        return CFrame.new(
+            Camera.CFrame.p,
+            TargetPosition + Vector3.new(
+                math.random(-Jittering.X, Jittering.X),
+                math.random(-Jittering.Y, Jittering.Y),
+                math.random(-Jittering.Z, Jittering.Z)
+            ) * Jittering.Factor
+        )
+    else
+        return CFrame.new(Camera.CFrame.p, TargetPosition + Vector3.new(OffsetX, OffsetY, 0))
+    end
+end
+
+local function UpdateCameraCFrame(AimbotTarget)
+    if not IsAimbotEnabled() or not IsValidAimbotTarget(AimbotTarget) then
+        return
+    end
+
+    local OffsetX, OffsetY = GetDisplacement()
+    local Velocity = AimbotTarget.Character[getgenv().x62.Aimbot.Settings.Targetting.Point].Velocity
+    local Jittering = getgenv().x62.Aimbot.Settings.Shake
+    local TargetPosition = DynamicTargetDelta(AimbotTarget, getgenv().x62.Aimbot.Settings.Targetting.Point)
+    local AdjustedPosition = GetAdjustedPosition(TargetPosition, OffsetX, OffsetY)
+    local AdjustedDelta = GetAdjustedDelta(AdjustedPosition, OffsetX, OffsetY, Jittering)
+    local CurvePatternsAmount = getgenv().x62.Aimbot.Settings.CurvePatterns.Pullback
+    local CurvePatternsAlpha = getgenv().x62.Aimbot.Settings.CurvePatterns.Pattern
+    if CurvePatternsAlpha == "Adaptive" then
+        Camera.CFrame = Camera.CFrame:Lerp(AdjustedDelta, CurvePatternsAmount, isoEasing)
+    elseif CurvePatternsAlpha == "Math" then
+        Camera.CFrame = Camera.CFrame:Lerp(AdjustedDelta, CurvePatternsAmount, DeltaEasing)
+    end
+end
+
+RS.Heartbeat:Connect(function()
+    UpdateCameraCFrame(AimbotTarget)
+end)
+
+Mouse.KeyDown:Connect(function(Key)
+    local Toggle = x62.Aimbot.Settings.Targetting.Target:lower()
+    if Key == Toggle then
+        if x62.Aimbot.Settings.Enabled then
+            FoundTarget = not FoundTarget
+            if FoundTarget then
+                AimbotTarget = ClosestAimbot()
+            else
+                AimbotTarget = nil
+            end
+        end
+    end
+end)
+
+local function ClosestRedirect()
+    local Target, Closest = nil, 1 / 0
+    for _, v in pairs(Players:GetPlayers()) do
+        if (v.Character and v ~= Self and v.Character:FindFirstChild("HumanoidRootPart")) then
+            local Position, OnScreen = Camera:WorldToScreenPoint(v.Character.HumanoidRootPart.Position)
+            local Distance = (Vector2.new(Position.X, Position.Y) - Vector2.new(Mouse.X, Mouse.Y)).Magnitude
+            if (AimbotFOV.Radius > Distance and Distance < Closest and OnScreen) then
+                Closest = Distance
+                Target = v
+            end
+        end
+    end
+    return Target
+end
+
+UserInputService.InputBegan:Connect(function(Input)
+    if (Input.UserInputType == Enum.UserInputType.Touch) then
+        local Redirect = x62.Aimbot.Settings.Targetting.Target:lower()
+        if (Input.KeyCode.Name:lower() == Redirect) then
+            if x62.Aimbot.Settings.Enabled then
+                FoundTarget = not FoundTarget
+                if FoundTarget then
+                    AimbotTarget = ClosestRedirect()
+                else
+                    AimbotTarget = nil
+                end
+            end
+        end
+    end
+end)
+
+Script.Functions.CreateCircle = createCircle
+Script.Functions.WorldToScreenObject = WorldToScreenObject
+
+Script.Functions.Raycast = RayViewPort
+Script.Functions.Filter = Filter
+
+Script.Functions.DeltaEasing = DeltaEasing
+Script.Functions.isoEasing = isoEasing
+Script.Functions.DynamicTargetDelta = DynamicTargetDelta
+Script.Functions.DeltaFormula = DeltaFormula
+Script.Functions.TargetDelta = TargetDelta
+
+Script.Functions.IsAimbotEnabled = IsAimbotEnabled
+Script.Functions.IsValidAimbotTarget = IsValidAimbotTarget
+
+Script.Functions.GetDisplacement = GetDisplacement
+Script.Functions.GetAdjustedPosition = GetAdjustedPosition
+Script.Functions.GetAdjustedDelta = GetAdjustedDelta
+
+Script.Functions.UpdateCameraCFrame = UpdateCameraCFrame
+
+Script.Functions.ClosestAimbot = ClosestAimbot
+Script.Functions.ClosestRedirect = ClosestRedirect
+
+return Script
