@@ -23,8 +23,8 @@ getgenv().x62 = {
                 }
             },
             Delta = {
-                Vertical = 0.0876,
-                Horizontal = 0.876,
+                Vertical = 0.75,
+                Horizontal = 0.13,
                 Steepness = 0.09
             },
             Shake = {
