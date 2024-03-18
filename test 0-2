@@ -30,9 +30,9 @@ getgenv().x62 = {
             Shake = { 
                 Enabled = true, 
                 Factor = 0.1, 
-                X = 22, 
-                Y = 22, 
-                Z = 22
+                X = 11, 
+                Y = 11, 
+                Z = 11
             }
         }
     },
